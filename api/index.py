@@ -82,7 +82,15 @@ def build_messages(prompt, message_type, tone, length, mode):
 
 def parse_groq_json(content):
     try:
-        parsed = json.loads(content)
+        # Strip code block markers if present
+        content_str = content.strip()
+        if '```' in content_str:
+            start = content_str.find('{')
+            end = content_str.rfind('}')
+            if start != -1 and end != -1:
+                content_str = content_str[start:end+1]
+        
+        parsed = json.loads(content_str)
         if not isinstance(parsed, dict):
             return None
         if not isinstance(parsed.get('draft'), str) or not parsed.get('draft').strip():
@@ -98,7 +106,8 @@ def parse_groq_json(content):
             'draft': parsed['draft'].strip(),
             'review': review
         }
-    except Exception:
+    except Exception as e:
+        print(f"Error parsing Groq JSON response: {e}")
         return None
 
 @app.route('/')
@@ -125,7 +134,8 @@ def draft_api():
     length = body.get('length')
     mode = body.get('mode', 'Write')
 
-    max_tokens = 300 if length == 'Brief' else (850 if length == 'Detailed' else 520)
+    # Set higher token limit to prevent truncation, especially when reasoning models use extra tokens for thinking
+    max_tokens = 1024 if length == 'Brief' else (2048 if length == 'Detailed' else 1536)
 
     try:
         payload = {
