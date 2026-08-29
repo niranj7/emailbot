@@ -4,15 +4,19 @@ import requests
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_from_directory
 
-# Resolve the root directory relative to this file
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Detect if running on Vercel
+is_vercel = os.getenv('VERCEL') == '1'
 
-# Load environment variables (passing the exact dotenv file path for safety)
-dotenv_path = os.path.join(root_dir, '.env')
-load_dotenv(dotenv_path)
-
-# Set static_folder to the root directory so local runs can serve static files
-app = Flask(__name__, static_folder=root_dir, static_url_path='')
+if not is_vercel:
+    # Resolve the root directory relative to this file
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # Load environment variables (passing the exact dotenv file path for safety)
+    dotenv_path = os.path.join(root_dir, '.env')
+    load_dotenv(dotenv_path)
+    # Set static_folder to the root directory so local runs can serve static files
+    app = Flask(__name__, static_folder=root_dir, static_url_path='')
+else:
+    app = Flask(__name__)
 
 # Allowed validation sets
 ALLOWED_TYPES = {'Email', 'Slack message', 'Text message'}
@@ -112,6 +116,8 @@ def parse_groq_json(content):
 
 @app.route('/')
 def serve_index():
+    if is_vercel:
+        return "Draftly API is running"
     return send_from_directory(root_dir, 'index.html')
 
 @app.route('/api/draft', methods=['POST'])
