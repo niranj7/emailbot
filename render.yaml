@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: draftly-email-agent
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      - key: PORT
+        value: "3000"
