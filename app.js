@@ -1,12 +1,31 @@
 const $ = (s) => document.querySelector(s);
-let tone = 'Warm', length = 'Balanced';
+let tone = 'Warm', length = 'Balanced', mode = 'Write';
 const prompt = $('#prompt');
 const toast = (message) => { const el = $('#toast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2600); };
 
 prompt.addEventListener('input', () => $('#charCount').textContent = `${prompt.value.length} / 1200`);
 $('#tonePills').addEventListener('click', e => { if (!e.target.matches('.tone')) return; document.querySelectorAll('.tone').forEach(x => x.classList.remove('active')); e.target.classList.add('active'); tone = e.target.dataset.tone; });
 $('#lengthPills').addEventListener('click', e => { if (!e.target.dataset.length) return; document.querySelectorAll('.length-pills button').forEach(x => x.classList.remove('active')); e.target.classList.add('active'); length = e.target.dataset.length; });
-function localDraft(text, type, chosenTone) { const greet = type === 'Email' ? 'Subject: A quick note\n\nHello,' : 'Hi,'; const closing = type === 'Email' ? '\n\nThank you for your understanding.\n\nBest regards,' : ''; return `${greet}\n\n${text.trim()}${closing}`; }
+$('#modePills').addEventListener('click', e => {
+  if (!e.target.matches('.mode')) return;
+  document.querySelectorAll('.mode').forEach(x => x.classList.remove('active'));
+  e.target.classList.add('active');
+  mode = e.target.dataset.mode;
+  if (mode === 'Refine') {
+    prompt.placeholder = "Paste your existing draft here. Draftly will refine the grammar, polish the tone, and improve the style.";
+    $('#promptHeading').textContent = "What would you like to refine?";
+  } else {
+    prompt.placeholder = "For example: Tell my professor I'll need two extra days to submit the assignment because I’ve been sick.";
+    $('#promptHeading').textContent = "What would you like to say?";
+  }
+});
+
+function localDraft(text, type, chosenTone) {
+  if (mode === 'Refine') return text.trim();
+  const greet = type === 'Email' ? 'Subject: A quick note\n\nHello,' : 'Hi,';
+  const closing = type === 'Email' ? '\n\nThank you for your understanding.\n\nBest regards,' : '';
+  return `${greet}\n\n${text.trim()}${closing}`;
+}
 function setServiceStatus(state, label) { const status = $('#connectionStatus'); status.classList.toggle('offline', state === 'offline'); status.classList.toggle('working', state === 'working'); status.lastChild.textContent = ` ${label}`; }
 async function generate() {
   const text = prompt.value.trim(); if (!text) { prompt.focus(); toast('Start with a rough thought first'); return; }
@@ -14,7 +33,7 @@ async function generate() {
   const type = $('#messageType').value; let draft; let review;
   setServiceStatus('working', 'AI is composing');
   try {
-    const response = await fetch('/api/draft', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prompt:text, type, tone, length}) });
+    const response = await fetch('/api/draft', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prompt:text, type, tone, length, mode}) });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(body.error || body.message || 'The AI service could not create a draft.');
     draft = typeof body.draft === 'string' ? body.draft.trim() : '';

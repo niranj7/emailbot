@@ -1,5 +1,9 @@
-node_modules
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 .env
 .git
-npm-debug.log*
 TESTING.md
+node_modules/
+package*.json

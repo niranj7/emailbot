@@ -1,10 +1,9 @@
-FROM node:24-alpine
+FROM python:3.13-slim
 
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
-ENV NODE_ENV=production
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["python", "server.py"]

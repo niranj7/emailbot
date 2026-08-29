@@ -28,9 +28,14 @@
 
       <section class="workspace">
         <div class="composer panel">
-          <div class="panel-heading"><div><span class="step">01</span><h2>What would you like to say?</h2></div><span class="char-count" id="charCount">0 / 1200</span></div>
+          <div class="panel-heading"><div><span class="step">01</span><h2 id="promptHeading">What would you like to say?</h2></div><span class="char-count" id="charCount">0 / 1200</span></div>
           <textarea id="prompt" maxlength="1200" placeholder="For example: Tell my professor I'll need two extra days to submit the assignment because I’ve been sick."></textarea>
           <div class="options">
+            <label class="option-label">MODE
+              <div class="mode-pills" id="modePills">
+                <button class="mode active" data-mode="Write">Write complete email</button><button class="mode" data-mode="Refine">Refine email</button>
+              </div>
+            </label>
             <label class="option-label">MESSAGE TYPE
               <select id="messageType"><option value="Email">Email</option><option value="Slack message">Slack message</option><option value="Text message">Text message</option></select>
             </label>
