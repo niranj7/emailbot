@@ -120,28 +120,31 @@ def serve_index():
 
 @app.route('/api/draft', methods=['POST'])
 def draft_api():
-    if not request.is_json:
-        return jsonify({'error': 'A JSON request body is required.'}), 400
-    
-    body = request.get_json()
-    validation_error = validate_draft_request(body)
-    if validation_error:
-        return jsonify({'error': validation_error}), 400
-
-    api_key = os.getenv('GROQ_API_KEY')
-    if not api_key:
-        return jsonify({'error': 'The server is not configured with a Groq API key.'}), 503
-
-    prompt = body.get('prompt')
-    message_type = body.get('messageType') or body.get('type')
-    tone = body.get('tone')
-    length = body.get('length')
-    mode = body.get('mode', 'Write')
-
-    # Set higher token limit to prevent truncation, especially when reasoning models use extra tokens for thinking
-    max_tokens = 1024 if length == 'Brief' else (2048 if length == 'Detailed' else 1536)
-
     try:
+        if not request.is_json:
+            return jsonify({'error': 'A JSON request body is required.'}), 400
+        
+        body = request.get_json()
+        validation_error = validate_draft_request(body)
+        if validation_error:
+            return jsonify({'error': validation_error}), 400
+
+        api_key = os.getenv('GROQ_API_KEY')
+        if not api_key:
+            return jsonify({'error': 'The server is not configured with a Groq API key.'}), 503
+        
+        # Clean the api key of any accidental spaces/newlines
+        api_key = api_key.strip()
+
+        prompt = body.get('prompt')
+        message_type = body.get('messageType') or body.get('type')
+        tone = body.get('tone')
+        length = body.get('length')
+        mode = body.get('mode', 'Write')
+
+        # Set higher token limit to prevent truncation, especially when reasoning models use extra tokens for thinking
+        max_tokens = 1024 if length == 'Brief' else (2048 if length == 'Detailed' else 1536)
+
         payload = {
             'model': os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile'),
             'temperature': 0.55,
@@ -167,20 +170,32 @@ def draft_api():
             groq_data = {}
 
         if response.status_code != 200:
-            print(f"Groq request failed: {response.status_code} {groq_data.get('error', {}).get('message', 'Unknown error')}")
-            return jsonify({'error': 'Draft generation is temporarily unavailable. Please try again.'}), (503 if response.status_code == 401 else 502)
+            error_msg = groq_data.get('error', {}).get('message', 'Unknown error')
+            print(f"Groq request failed: {response.status_code} {error_msg}")
+            return jsonify({'error': f'Groq service error: {error_msg}'}), (503 if response.status_code == 401 else 502)
 
-        content = groq_data.get('choices', [{}])[0].get('message', {}).get('content', '')
+        # Parse choices safely to avoid IndexError
+        choices = groq_data.get('choices')
+        if not choices or not isinstance(choices, list):
+            print("Groq response does not contain choices list.")
+            return jsonify({'error': 'The writing service returned an empty completion list. Please try again.'}), 502
+
+        content = choices[0].get('message', {}).get('content', '')
         result = parse_groq_json(content)
         if not result:
             print("Groq returned an invalid draft format.")
-            return jsonify({'error': 'The writing service returned an invalid response. Please try again.'}), 502
+            return jsonify({'error': 'The writing service returned an invalid response structure. Please try again.'}), 502
 
         return jsonify(result)
 
     except requests.exceptions.RequestException as e:
         print(f"Groq connection error: {e}")
-        return jsonify({'error': 'Could not reach the writing service. Please try again.'}), 502
+        return jsonify({'error': f'Could not reach the writing service: {str(e)}'}), 502
+    except Exception as e:
+        print(f"Internal handler error in draft_api: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Internal server error: {str(e)}'}), 500
 
 if __name__ == '__main__':
     PORT = int(os.getenv('PORT', 3000))
